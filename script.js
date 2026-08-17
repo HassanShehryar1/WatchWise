@@ -18,6 +18,36 @@ async function searchMovies(query) {
   renderMovies(data.results);
 }
 
+const detailsCache = new Map();
+
+async function loadMovieDetails(card, movieId) {
+  if (detailsCache.has(movieId)) {
+    applyDetails(card, detailsCache.get(movieId));
+    return;
+  }
+
+  const res = await fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}`);
+  const data = await res.json();
+  detailsCache.set(movieId, data);
+  applyDetails(card, data);
+}
+
+function applyDetails(card, data) {
+  const taglineEl = card.querySelector(".overlay-tagline");
+  const descEl = card.querySelector(".overlay-desc");
+
+  taglineEl.textContent = data.tagline || "";
+  descEl.textContent = data.overview
+    ? data.overview.split(". ")[0] + "."
+    : "No description available.";
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "Release date unknown";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
 function renderMovies(movies) {
   movieGrid.innerHTML = "";
 
@@ -35,14 +65,24 @@ function renderMovies(movies) {
       : "https://via.placeholder.com/300x450?text=No+Image";
 
     card.innerHTML = `
-      <img src="${posterPath}" alt="${movie.title}">
-      <div class="info">
-        <h3>${movie.title}</h3>
-        <p>${movie.release_date ? movie.release_date.slice(0, 4) : "N/A"}</p>
-      </div>
-    `;
+  <img src="${posterPath}" alt="${movie.title}">
+  <div class="info">
+    <h3>${movie.title}</h3>
+    <p>${movie.release_date ? movie.release_date.slice(0, 4) : "N/A"}</p>
+  </div>
+  <div class="movie-overlay">
+    <h3>${movie.title}</h3>
+    <p class="overlay-date">${formatDate(movie.release_date)}</p>
+    <p class="overlay-tagline">Loading...</p>
+    <p class="overlay-desc"></p>
+  </div>
+`;
 
     movieGrid.appendChild(card);
+
+    card.addEventListener("mouseenter", () => {
+      loadMovieDetails(card, movie.id);
+    }, { once: true });
   });
 }
 
