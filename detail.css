@@ -1,0 +1,45 @@
+#detail-hero {
+  height: 60vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+}
+
+#detail-overlay {
+  width: 100%;
+  padding: 40px;
+  background: linear-gradient(to top, rgba(13,17,23,1), rgba(13,17,23,0.2));
+}
+
+#detail-title {
+  font-size: 32px;
+  margin-bottom: 6px;
+}
+
+#detail-tagline {
+  font-style: italic;
+  color: #4dd0e1;
+  margin-bottom: 10px;
+}
+
+#detail-meta {
+  margin-bottom: 12px;
+  color: #ccc;
+}
+
+#detail-overview {
+  max-width: 700px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.provider-list {
+  display: flex;
+  gap: 10px;
+}
+
+.provider-list img {
+  width: 40px;
+  border-radius: 6px;
+}

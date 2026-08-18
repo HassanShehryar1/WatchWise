@@ -12,23 +12,24 @@ async function fetchPopular() {
   renderMovies(data.results);
 }
 
-async function searchMovies(query) {
-  const res = await fetch(`${BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(query)}`);
+async function searchTitles(query) {
+  const res = await fetch(`${BASE_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query)}`);
   const data = await res.json();
-  renderMovies(data.results);
+  const filtered = data.results.filter(item => item.media_type === "movie" || item.media_type === "tv");
+  renderMovies(filtered);
 }
 
 const detailsCache = new Map();
 
-async function loadMovieDetails(card, movieId) {
-  if (detailsCache.has(movieId)) {
-    applyDetails(card, detailsCache.get(movieId));
+async function loadMovieDetails(card, itemId, mediaType) {
+  if (detailsCache.has(itemId)) {
+    applyDetails(card, detailsCache.get(itemId));
     return;
   }
 
-  const res = await fetch(`${BASE_URL}/movie/${movieId}?api_key=${API_KEY}`);
+  const res = await fetch(`${BASE_URL}/${mediaType}/${itemId}?api_key=${API_KEY}`);
   const data = await res.json();
-  detailsCache.set(movieId, data);
+  detailsCache.set(itemId, data);
   applyDetails(card, data);
 }
 
@@ -56,33 +57,41 @@ function renderMovies(movies) {
     return;
   }
 
-  movies.forEach(movie => {
+  movies.forEach(item => {
+    const mediaType = item.media_type || "movie";
+    const displayTitle = item.title || item.name;
+    const displayDate = item.release_date || item.first_air_date;
+
     const card = document.createElement("div");
     card.className = "movie-card";
 
-    const posterPath = movie.poster_path
-      ? `${IMG_URL}${movie.poster_path}`
+    const posterPath = item.poster_path
+      ? `${IMG_URL}${item.poster_path}`
       : "https://via.placeholder.com/300x450?text=No+Image";
 
     card.innerHTML = `
-  <img src="${posterPath}" alt="${movie.title}">
-  <div class="info">
-    <h3>${movie.title}</h3>
-    <p>${movie.release_date ? movie.release_date.slice(0, 4) : "N/A"}</p>
-  </div>
-  <div class="movie-overlay">
-    <h3>${movie.title}</h3>
-    <p class="overlay-date">${formatDate(movie.release_date)}</p>
-    <p class="overlay-tagline">Loading...</p>
-    <p class="overlay-desc"></p>
-  </div>
-`;
-
-    movieGrid.appendChild(card);
+      <img src="${posterPath}" alt="${displayTitle}">
+      <div class="info">
+        <h3>${displayTitle}</h3>
+        <p>${displayDate ? displayDate.slice(0, 4) : "N/A"}</p>
+      </div>
+      <div class="movie-overlay">
+        <h3>${displayTitle}</h3>
+        <p class="overlay-date">${formatDate(displayDate)}</p>
+        <p class="overlay-tagline">Loading...</p>
+        <p class="overlay-desc"></p>
+      </div>
+    `;
 
     card.addEventListener("mouseenter", () => {
-      loadMovieDetails(card, movie.id);
+      loadMovieDetails(card, item.id, mediaType);
     }, { once: true });
+
+    card.addEventListener("click", () => {
+      window.location.href = `detail.html?type=${mediaType}&id=${item.id}`;
+    });
+
+    movieGrid.appendChild(card);
   });
 }
 
