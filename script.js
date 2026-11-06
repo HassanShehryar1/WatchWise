@@ -1,4 +1,3 @@
-const BASE_URL = "https://api.themoviedb.org/3";
 const IMG_URL = "https://image.tmdb.org/t/p/w300";
 
 const movieGrid = document.getElementById("movie-grid");
@@ -6,31 +5,48 @@ const searchForm = document.getElementById("search-form");
 const searchInput = document.getElementById("search-input");
 const sectionTitle = document.getElementById("section-title");
 
+function showLoadError(err) {
+  console.error(err);
+  movieGrid.innerHTML = "<p>Could not load titles. Please try again.</p>";
+}
+
 async function fetchPopular() {
-  const res = await fetch(`${BASE_URL}/movie/popular?api_key=${API_KEY}`);
-  const data = await res.json();
-  renderMovies(data.results);
+  try {
+    const data = await tmdb("/movie/popular");
+    renderMovies(data.results);
+  } catch (err) {
+    showLoadError(err);
+  }
 }
 
 async function searchTitles(query) {
-  const res = await fetch(`${BASE_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query)}`);
-  const data = await res.json();
-  const filtered = data.results.filter(item => item.media_type === "movie" || item.media_type === "tv");
-  renderMovies(filtered);
+  try {
+    const data = await tmdb(`/search/multi?query=${encodeURIComponent(query)}`);
+    const filtered = data.results.filter(item => item.media_type === "movie" || item.media_type === "tv");
+    renderMovies(filtered);
+  } catch (err) {
+    showLoadError(err);
+  }
 }
 
 const detailsCache = new Map();
 
 async function loadMovieDetails(card, itemId, mediaType) {
-  if (detailsCache.has(itemId)) {
-    applyDetails(card, detailsCache.get(itemId));
+  const cacheKey = `${mediaType}-${itemId}`;
+
+  if (detailsCache.has(cacheKey)) {
+    applyDetails(card, detailsCache.get(cacheKey));
     return;
   }
 
-  const res = await fetch(`${BASE_URL}/${mediaType}/${itemId}?api_key=${API_KEY}`);
-  const data = await res.json();
-  detailsCache.set(itemId, data);
-  applyDetails(card, data);
+  try {
+    const data = await tmdb(`/${mediaType}/${itemId}`);
+    detailsCache.set(cacheKey, data);
+    applyDetails(card, data);
+  } catch (err) {
+    console.error(err);
+    card.querySelector(".overlay-tagline").textContent = "Could not load details.";
+  }
 }
 
 function applyDetails(card, data) {
@@ -38,15 +54,13 @@ function applyDetails(card, data) {
   const descEl = card.querySelector(".overlay-desc");
 
   taglineEl.textContent = data.tagline || "";
-  descEl.textContent = data.overview
-    ? data.overview.split(". ")[0] + "."
-    : "No description available.";
+  descEl.textContent = data.overview || "No description available.";
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return "Release date unknown";
   const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 function renderMovies(movies) {
@@ -70,18 +84,27 @@ function renderMovies(movies) {
       : "https://via.placeholder.com/300x450?text=No+Image";
 
     card.innerHTML = `
-      <img src="${posterPath}" alt="${displayTitle}">
+      <img>
       <div class="info">
-        <h3>${displayTitle}</h3>
-        <p>${displayDate ? displayDate.slice(0, 4) : "N/A"}</p>
+        <h3></h3>
+        <p></p>
       </div>
       <div class="movie-overlay">
-        <h3>${displayTitle}</h3>
-        <p class="overlay-date">${formatDate(displayDate)}</p>
+        <h3></h3>
+        <p class="overlay-date"></p>
         <p class="overlay-tagline">Loading...</p>
         <p class="overlay-desc"></p>
       </div>
     `;
+
+    const img = card.querySelector("img");
+    img.src = posterPath;
+    img.alt = displayTitle;
+    card.querySelectorAll("h3").forEach(h3 => {
+      h3.textContent = displayTitle;
+    });
+    card.querySelector(".info p").textContent = displayDate ? displayDate.slice(0, 4) : "N/A";
+    card.querySelector(".overlay-date").textContent = formatDate(displayDate);
 
     card.addEventListener("mouseenter", () => {
       loadMovieDetails(card, item.id, mediaType);
@@ -100,7 +123,7 @@ searchForm.addEventListener("submit", (e) => {
   const query = searchInput.value.trim();
   if (query) {
     sectionTitle.textContent = `Results for "${query}"`;
-    searchMovies(query);
+    searchTitles(query);
   } else {
     sectionTitle.textContent = "Popular Movies";
     fetchPopular();

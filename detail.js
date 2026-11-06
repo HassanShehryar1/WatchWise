@@ -2,15 +2,27 @@ const params = new URLSearchParams(window.location.search);
 const mediaType = params.get("type");
 const itemId = params.get("id");
 
-const BASE_URL = "https://api.themoviedb.org/3";
 const BACKDROP_URL = "https://image.tmdb.org/t/p/original";
 const PROVIDER_ICON_URL = "https://image.tmdb.org/t/p/w45";
 
+function showDetailError() {
+  document.getElementById("detail-title").textContent = "Could not load this title.";
+}
+
 async function loadDetail() {
-  const res = await fetch(`${BASE_URL}/${mediaType}/${itemId}?api_key=${API_KEY}`);
-  const data = await res.json();
-  renderDetail(data);
-  loadProviders();
+  if (!["movie", "tv"].includes(mediaType) || !/^\d+$/.test(itemId)) {
+    showDetailError();
+    return;
+  }
+
+  try {
+    const data = await tmdb(`/${mediaType}/${itemId}`);
+    renderDetail(data);
+    loadProviders();
+  } catch (err) {
+    console.error(err);
+    showDetailError();
+  }
 }
 
 function renderDetail(data) {
@@ -34,11 +46,18 @@ function renderDetail(data) {
 }
 
 async function loadProviders() {
-  const res = await fetch(`${BASE_URL}/${mediaType}/${itemId}/watch/providers?api_key=${API_KEY}`);
-  const data = await res.json();
-  const region = data.results?.US; // change to your region code if needed
-
   const container = document.getElementById("detail-providers");
+
+  let data;
+  try {
+    data = await tmdb(`/${mediaType}/${itemId}/watch/providers`);
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = "<p>Could not load streaming information.</p>";
+    return;
+  }
+
+  const region = data.results?.US; // change to your region code if needed
 
   if (!region || !region.flatrate) {
     container.innerHTML = "<p>Not currently streaming.</p>";
